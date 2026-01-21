@@ -1,1 +1,1 @@
-# betterdiscord-pluhins-and-themes
+# betterdiscord-plugins-and-themes
