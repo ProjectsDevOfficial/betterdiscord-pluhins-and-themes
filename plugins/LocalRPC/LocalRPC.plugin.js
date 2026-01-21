@@ -1,25 +1,82 @@
 /**
  * @name LocalRPC
  * @author ProjectsDev
- * @version 0.1 beta
+ * @version 0.2 beta
  * @updateurl https://raw.githubusercontent.com/ProjectsDevOfficial/betterdiscord-plugins-and-themes/main/plugins/LocalRPC/LocalRPC.plugin.js
  * @source https://github.com/ProjectsDevOfficial/betterdiscord-plugins-and-themes/tree/main/plugins/LocalRPC
- * @description Локальный кастомный Rich Presence для Discord (BetterDiscord)
+ * @description Local custom Rich Presence for Discord (BetterDiscord)
  */
 
 module.exports = class CustomRPC {
     constructor() {
+        this.currentLanguage = 'en'; // 'en' or 'ru'
+        this.translations = {
+            en: {
+                pluginName: "LocalRPC",
+                pluginDescription: "Local custom Rich Presence for BetterDiscord",
+                toastLoaded: "LocalRPC loaded",
+                settingsTitle: "Local RPC (Local Activity)",
+                warning: "⚠️ This is a local status, only you can see it!",
+                enableButton: "✅ Enable",
+                disableButton: "❌ Disable",
+                appId: "Application ID",
+                appIdPlaceholder: "Optional for images",
+                name: "Name",
+                namePlaceholder: "My cool status",
+                details: "Details",
+                detailsPlaceholder: "What I'm doing now",
+                state: "State",
+                statePlaceholder: "Additional info",
+                largeImageKey: "Large image key",
+                largeImageText: "Large image text",
+                largeImageTextPlaceholder: "Tooltip on hover",
+                smallImageKey: "Small image key",
+                smallImageText: "Small image text",
+                smallImageTextPlaceholder: "Another tooltip",
+                showTime: "Show activity time",
+                defaultName: "Custom Status",
+                defaultDetails: "Hello from BetterDiscord"
+            },
+            ru: {
+                pluginName: "LocalRPC",
+                pluginDescription: "Локальный кастомный Rich Presence для BetterDiscord",
+                toastLoaded: "LocalRPC загружен",
+                settingsTitle: "Локальный RPC (Local Activity)",
+                warning: "⚠️ Это локальный статус, видят только вы!",
+                enableButton: "✅ Включить",
+                disableButton: "❌ Выключить",
+                appId: "ID приложения",
+                appIdPlaceholder: "Опционально для картинок",
+                name: "Название",
+                namePlaceholder: "Мой крутой статус",
+                details: "Описание",
+                detailsPlaceholder: "Что делаю сейчас",
+                state: "Состояние",
+                statePlaceholder: "Дополнительная инфа",
+                largeImageKey: "Ключ большого изображения",
+                largeImageText: "Текст большого изображения",
+                largeImageTextPlaceholder: "Подсказка при наведении",
+                smallImageKey: "Ключ маленького изображения",
+                smallImageText: "Текст маленького изображения",
+                smallImageTextPlaceholder: "Ещё подсказка",
+                showTime: "Показывать время активности",
+                defaultName: "Кастомный статус",
+                defaultDetails: "Привет из BetterDiscord"
+            }
+        };
+
         this.settings = {
             enabled: false,
             applicationId: "",
-            name: "Кастомный статус",
-            details: "Привет из BetterDiscord",
+            name: this.translations.en.defaultName,
+            details: this.translations.en.defaultDetails,
             state: "",
             largeImage: "",
             largeText: "",
             smallImage: "",
             smallText: "",
-            showTime: true
+            showTime: true,
+            language: 'en'
         };
 
         this.interval = null;
@@ -28,14 +85,15 @@ module.exports = class CustomRPC {
     /* ===== МЕТАДАННЫЕ ===== */
     getName() { return "LocalRPC"; }
     getAuthor() { return "ProjectsDev"; }
-    getVersion() { return "0.1 beta "; }
-    getDescription() { return "Локальный кастомный Rich Presence для BetterDiscord"; }
+    getVersion() { return "0.2 beta"; }
+    getDescription() { return this.translations[this.currentLanguage].pluginDescription; }
 
     /* ===== ЖИЗНЕННЫЙ ЦИКЛ ===== */
     start() {
         this.loadSettings();
+        this.currentLanguage = this.settings.language || 'en';
         if (this.settings.enabled) this.startRPC();
-        BdApi.UI.showToast("LocalRPC загружен", { type: "success" });
+        BdApi.UI.showToast(this.translations[this.currentLanguage].toastLoaded, { type: "success" });
     }
 
     stop() {
@@ -44,10 +102,16 @@ module.exports = class CustomRPC {
 
     /* ===== НАСТРОЙКИ ===== */
     loadSettings() {
-        this.settings = {
-            ...this.settings,
-            ...(BdApi.Data.load("LocalRPC", "settings") || {})
-        };
+        const saved = BdApi.Data.load("LocalRPC", "settings") || {};
+        this.settings = { ...this.settings, ...saved };
+        
+        // Update default values based on language
+        if (!saved.name) {
+            this.settings.name = this.translations[this.settings.language || 'en'].defaultName;
+        }
+        if (!saved.details) {
+            this.settings.details = this.translations[this.settings.language || 'en'].defaultDetails;
+        }
     }
 
     saveSettings() {
@@ -105,18 +169,73 @@ module.exports = class CustomRPC {
 
     /* ===== ИНТЕРФЕЙС ===== */
     getSettingsPanel() {
+        const t = this.translations[this.currentLanguage];
         const panel = document.createElement("div");
         panel.style.padding = "15px";
         
         // Заголовок
         const title = document.createElement("h3");
-        title.textContent = "Локальный RPC (Local Activity)";
+        title.textContent = t.settingsTitle;
         title.style.marginTop = "0";
         panel.appendChild(title);
 
+        // Языковой переключатель
+        const langContainer = document.createElement("div");
+        langContainer.style.marginBottom = "15px";
+        langContainer.style.display = "flex";
+        langContainer.style.alignItems = "center";
+        langContainer.style.gap = "10px";
+        
+        const langLabel = document.createElement("span");
+        langLabel.textContent = "Language / Язык:";
+        langLabel.style.fontSize = "14px";
+        
+        const langSelect = document.createElement("select");
+        langSelect.style.padding = "5px";
+        langSelect.style.borderRadius = "3px";
+        langSelect.style.backgroundColor = "var(--background-secondary)";
+        langSelect.style.border = "1px solid var(--background-modifier-accent)";
+        
+        const optionEn = document.createElement("option");
+        optionEn.value = "en";
+        optionEn.textContent = "English";
+        optionEn.selected = this.currentLanguage === 'en';
+        
+        const optionRu = document.createElement("option");
+        optionRu.value = "ru";
+        optionRu.textContent = "Русский";
+        optionRu.selected = this.currentLanguage === 'ru';
+        
+        langSelect.appendChild(optionEn);
+        langSelect.appendChild(optionRu);
+        
+        langSelect.onchange = (e) => {
+            this.currentLanguage = e.target.value;
+            this.settings.language = e.target.value;
+            this.saveSettings();
+            
+            // Обновляем значения по умолчанию при смене языка, только если они не были изменены пользователем
+            if (this.settings.name === this.translations[this.currentLanguage === 'en' ? 'ru' : 'en'].defaultName) {
+                this.settings.name = t.defaultName;
+            }
+            if (this.settings.details === this.translations[this.currentLanguage === 'en' ? 'ru' : 'en'].defaultDetails) {
+                this.settings.details = t.defaultDetails;
+            }
+            
+            this.saveSettings();
+            
+            // Перезагружаем панель настроек
+            const settingsPanel = this.getSettingsPanel();
+            panel.parentNode?.replaceChild(settingsPanel, panel);
+        };
+        
+        langContainer.appendChild(langLabel);
+        langContainer.appendChild(langSelect);
+        panel.appendChild(langContainer);
+
         // Инфо-текст
         const info = document.createElement("div");
-        info.textContent = "⚠️ Это локальный статус, видят только вы!";
+        info.textContent = t.warning;
         info.style.fontSize = "12px";
         info.style.color = "var(--text-muted)";
         info.style.marginBottom = "15px";
@@ -153,7 +272,7 @@ module.exports = class CustomRPC {
 
         // Кнопка вкл/выкл
         const toggle = document.createElement("button");
-        toggle.textContent = this.settings.enabled ? "❌ Выключить" : "✅ Включить";
+        toggle.textContent = this.settings.enabled ? t.disableButton : t.enableButton;
         toggle.style.marginBottom = "15px";
         toggle.style.padding = "8px 16px";
         toggle.style.borderRadius = "4px";
@@ -164,21 +283,21 @@ module.exports = class CustomRPC {
         toggle.onclick = () => {
             this.settings.enabled = !this.settings.enabled;
             this.saveSettings();
-            toggle.textContent = this.settings.enabled ? "❌ Выключить" : "✅ Включить";
+            toggle.textContent = this.settings.enabled ? t.disableButton : t.enableButton;
             toggle.style.backgroundColor = this.settings.enabled ? "var(--button-danger-background)" : "var(--button-positive-background)";
             this.settings.enabled ? this.startRPC() : this.stopRPC();
         };
         panel.appendChild(toggle);
 
         // Поля ввода
-        panel.appendChild(createInput("ID приложения", "applicationId", "Опционально для картинок"));
-        panel.appendChild(createInput("Название", "name", "Мой крутой статус"));
-        panel.appendChild(createInput("Описание", "details", "Что делаю сейчас"));
-        panel.appendChild(createInput("Состояние", "state", "Дополнительная инфа"));
-        panel.appendChild(createInput("Ключ большого изображения", "largeImage", "image_large"));
-        panel.appendChild(createInput("Текст большого изображения", "largeText", "Подсказка при наведении"));
-        panel.appendChild(createInput("Ключ маленького изображения", "smallImage", "image_small"));
-        panel.appendChild(createInput("Текст маленького изображения", "smallText", "Ещё подсказка"));
+        panel.appendChild(createInput(t.appId, "applicationId", t.appIdPlaceholder));
+        panel.appendChild(createInput(t.name, "name", t.namePlaceholder));
+        panel.appendChild(createInput(t.details, "details", t.detailsPlaceholder));
+        panel.appendChild(createInput(t.state, "state", t.statePlaceholder));
+        panel.appendChild(createInput(t.largeImageKey, "largeImage", "image_large"));
+        panel.appendChild(createInput(t.largeImageText, "largeText", t.largeImageTextPlaceholder));
+        panel.appendChild(createInput(t.smallImageKey, "smallImage", "image_small"));
+        panel.appendChild(createInput(t.smallImageText, "smallText", t.smallImageTextPlaceholder));
 
         // Чекбокс времени
         const timeWrap = document.createElement("div");
@@ -195,7 +314,7 @@ module.exports = class CustomRPC {
         };
         
         const timeLabel = document.createElement("label");
-        timeLabel.textContent = "Показывать время активности";
+        timeLabel.textContent = t.showTime;
         timeLabel.style.marginLeft = "5px";
         timeLabel.htmlFor = "showTime";
         
